@@ -6,10 +6,11 @@ import { AiCoachDrawer } from "@/components/ai-coach-drawer";
 import { HallSelection } from "@/components/hall-selection";
 import { LandingPage } from "@/components/landing-page";
 import { TimelineGallery } from "@/components/timeline-gallery";
-import type { MuseumHall } from "@/lib/halls";
+import { getHallById, type MuseumHall } from "@/lib/halls";
 import {
   clearStudentSession,
   loadStudentSession,
+  saveAppNavigation,
   saveStudentSession,
 } from "@/lib/student-session";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -23,19 +24,36 @@ import {
 
 type AppPhase = "landing" | "halls" | "gallery";
 
+function resolvePhaseFromSession(
+  session: NonNullable<ReturnType<typeof loadStudentSession>>,
+): { phase: AppPhase; hall: MuseumHall | null } {
+  if (session.appPhase === "gallery" && session.hallId) {
+    const hall = getHallById(session.hallId);
+    if (hall) {
+      return { phase: "gallery", hall };
+    }
+  }
+  return { phase: "halls", hall: null };
+}
+
 export function LiteratureMuseumApp() {
   const [profile, setProfile] = useState<UserProfile>(() => emptyUserProfile());
   const [studentId, setStudentId] = useState<string | null>(null);
   const [phase, setPhase] = useState<AppPhase>("landing");
   const [selectedHall, setSelectedHall] = useState<MuseumHall | null>(null);
   const [isEntering, setIsEntering] = useState(false);
+  const [isBootstrapped, setIsBootstrapped] = useState(false);
 
   useEffect(() => {
     const session = loadStudentSession();
     if (session) {
       setProfile(session.profile);
       setStudentId(session.studentId);
+      const restored = resolvePhaseFromSession(session);
+      setPhase(restored.phase);
+      setSelectedHall(restored.hall);
     }
+    setIsBootstrapped(true);
   }, []);
 
   async function handleEnter() {
@@ -63,7 +81,8 @@ export function LiteratureMuseumApp() {
       const id = await upsertStudent(normalized);
       setProfile(normalized);
       setStudentId(id);
-      saveStudentSession(id, normalized);
+      saveStudentSession(id, normalized, "halls", null);
+      setSelectedHall(null);
       setPhase("halls");
     } catch (error) {
       console.error("학생 저장 실패:", formatSupabaseError(error), error);
@@ -89,11 +108,13 @@ export function LiteratureMuseumApp() {
     }
     setSelectedHall(hall);
     setPhase("gallery");
+    saveAppNavigation("gallery", hall.id);
   }
 
   function handleBackToHalls() {
     setPhase("halls");
     setSelectedHall(null);
+    saveAppNavigation("halls", null);
   }
 
   function handleBackToLanding() {
@@ -102,6 +123,14 @@ export function LiteratureMuseumApp() {
     setProfile(emptyUserProfile());
     setPhase("landing");
     setSelectedHall(null);
+  }
+
+  if (!isBootstrapped) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-sm text-neutral-400">
+        불러오는 중…
+      </div>
+    );
   }
 
   return (
