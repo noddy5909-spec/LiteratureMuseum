@@ -105,18 +105,23 @@ function applyThemeCommentEvent(
 
   if (event === "DELETE") {
     const row = payload.old;
-    if (!row?.id || !row.theme_id) return;
+    const commentId = row?.id;
+    if (!commentId) return;
+
+    // RLS + Realtime DELETE 시 old에 theme_id가 없고 id만 오는 경우가 많음
     setThemes((prev) =>
-      prev.map((theme) =>
-        theme.id === row.theme_id
-          ? {
-              ...theme,
-              comments: theme.comments.filter(
-                (comment) => comment.id !== row.id,
-              ),
-            }
-          : theme,
-      ),
+      prev.map((theme) => {
+        if (row?.theme_id && theme.id !== row.theme_id) return theme;
+        if (!theme.comments.some((comment) => comment.id === commentId)) {
+          return theme;
+        }
+        return {
+          ...theme,
+          comments: theme.comments.filter(
+            (comment) => comment.id !== commentId,
+          ),
+        };
+      }),
     );
   }
 }
