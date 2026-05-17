@@ -8,6 +8,14 @@ import { LandingPage } from "@/components/landing-page";
 import { TimelineGallery } from "@/components/timeline-gallery";
 import type { MuseumHall } from "@/lib/halls";
 import {
+  clearStudentSession,
+  loadStudentSession,
+  saveStudentSession,
+} from "@/lib/student-session";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { formatSupabaseError, isMissingTableError } from "@/lib/supabase/errors";
+import { upsertStudent } from "@/lib/supabase/students";
+import {
   emptyUserProfile,
   normalizeUserProfile,
   type UserProfile,
@@ -17,29 +25,68 @@ type AppPhase = "landing" | "halls" | "gallery";
 
 export function LiteratureMuseumApp() {
   const [profile, setProfile] = useState<UserProfile>(() => emptyUserProfile());
+  const [studentId, setStudentId] = useState<string | null>(null);
   const [phase, setPhase] = useState<AppPhase>("landing");
   const [selectedHall, setSelectedHall] = useState<MuseumHall | null>(null);
+  const [isEntering, setIsEntering] = useState(false);
 
   useEffect(() => {
-    sessionStorage.removeItem("literature-museum-entered");
-    sessionStorage.removeItem("literature-museum-username");
-    sessionStorage.removeItem("literature-museum-profile");
+    const session = loadStudentSession();
+    if (session) {
+      setProfile(session.profile);
+      setStudentId(session.studentId);
+    }
   }, []);
 
-  function handleEnter() {
+  async function handleEnter() {
+    if (isEntering) return;
+
+    const normalized = normalizeUserProfile(profile);
     if (
-      !profile.grade.trim() ||
-      !profile.classNum.trim() ||
-      !profile.number.trim() ||
-      !profile.name.trim()
+      !normalized.grade ||
+      !normalized.classNum ||
+      !normalized.number ||
+      !normalized.name
     ) {
       return;
     }
-    setProfile(normalizeUserProfile(profile));
-    setPhase("halls");
+
+    setIsEntering(true);
+    try {
+      if (!isSupabaseConfigured()) {
+        alert(
+          "Supabase가 설정되지 않았습니다. .env.local 파일을 확인해 주세요.",
+        );
+        return;
+      }
+
+      const id = await upsertStudent(normalized);
+      setProfile(normalized);
+      setStudentId(id);
+      saveStudentSession(id, normalized);
+      setPhase("halls");
+    } catch (error) {
+      console.error("학생 저장 실패:", formatSupabaseError(error), error);
+      if (isMissingTableError(error)) {
+        alert(
+          "데이터베이스 테이블이 없습니다. Supabase SQL Editor에서 supabase/schema.sql을 실행해 주세요.",
+        );
+      } else {
+        alert(
+          `학생 정보 저장에 실패했습니다.\n\n${formatSupabaseError(error)}\n\nURL은 https://xxxx.supabase.co 형식이어야 합니다 (/rest/v1 붙이지 마세요).`,
+        );
+      }
+    } finally {
+      setIsEntering(false);
+    }
   }
 
   function handleSelectHall(hall: MuseumHall) {
+    if (!studentId) {
+      alert("학생 정보가 없습니다. 입장 화면에서 다시 등록해 주세요.");
+      setPhase("landing");
+      return;
+    }
     setSelectedHall(hall);
     setPhase("gallery");
   }
@@ -50,6 +97,9 @@ export function LiteratureMuseumApp() {
   }
 
   function handleBackToLanding() {
+    clearStudentSession();
+    setStudentId(null);
+    setProfile(emptyUserProfile());
     setPhase("landing");
     setSelectedHall(null);
   }
@@ -69,6 +119,7 @@ export function LiteratureMuseumApp() {
               profile={profile}
               onProfileChange={setProfile}
               onEnter={handleEnter}
+              isEntering={isEntering}
             />
           </motion.div>
         ) : phase === "halls" ? (
@@ -85,7 +136,7 @@ export function LiteratureMuseumApp() {
               onBack={handleBackToLanding}
             />
           </motion.div>
-        ) : selectedHall ? (
+        ) : selectedHall && studentId ? (
           <motion.div
             key={`gallery-${selectedHall.id}`}
             initial={{ opacity: 0 }}
@@ -95,6 +146,7 @@ export function LiteratureMuseumApp() {
           >
             <TimelineGallery
               profile={profile}
+              studentId={studentId}
               hall={selectedHall}
               onBack={handleBackToHalls}
             />

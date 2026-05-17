@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BackButton } from "@/components/back-button";
 import { EraWorksView } from "@/components/era-works-view";
 import { HorizontalTimeline } from "@/components/horizontal-timeline";
@@ -13,27 +13,65 @@ import {
   type LiteraryWork,
   type TimelineEra,
 } from "@/lib/timeline-data";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import {
-  createThemeComment,
-  createThemeEntry,
-  type ThemeEntry,
-} from "@/lib/theme-types";
+  deleteComment,
+  deleteTheme,
+  fetchThemesByHall,
+  insertComment,
+  insertTheme,
+  updateCommentText,
+  updateThemeLikes,
+  updateThemeText,
+} from "@/lib/supabase/themes";
+import type { ThemeEntry } from "@/lib/theme-types";
 import type { MuseumHall } from "@/lib/halls";
 import { formatUserDisplay, type UserProfile } from "@/lib/user-profile";
 
 type TimelineGalleryProps = {
   profile: UserProfile;
+  studentId: string;
   hall: MuseumHall;
   onBack: () => void;
 };
 
-export function TimelineGallery({ profile, hall, onBack }: TimelineGalleryProps) {
+export function TimelineGallery({
+  profile,
+  studentId,
+  hall,
+  onBack,
+}: TimelineGalleryProps) {
   const userDisplay = formatUserDisplay(profile);
   const [selectedEra, setSelectedEra] = useState<TimelineEra | null>(null);
   const [selectedWork, setSelectedWork] = useState<LiteraryWork | null>(null);
   const [themes, setThemes] = useState<ThemeEntry[]>([]);
+  const [isLoadingThemes, setIsLoadingThemes] = useState(true);
 
   const eraWorks = selectedEra ? getWorksByEraId(selectedEra.id) : [];
+  const hallThemes = themes.filter((theme) => theme.hallId === hall.id);
+
+  const loadThemes = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setThemes([]);
+      setIsLoadingThemes(false);
+      return;
+    }
+
+    setIsLoadingThemes(true);
+    try {
+      const data = await fetchThemesByHall(hall.id);
+      setThemes(data);
+    } catch (error) {
+      console.error(error);
+      alert("주제 의식을 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingThemes(false);
+    }
+  }, [hall.id]);
+
+  useEffect(() => {
+    void loadThemes();
+  }, [loadThemes]);
 
   function handleHeaderBack() {
     if (selectedEra) {
@@ -43,90 +81,131 @@ export function TimelineGallery({ profile, hall, onBack }: TimelineGalleryProps)
     onBack();
   }
 
-  const hallThemes = themes.filter((theme) => theme.hallId === hall.id);
-
-  function handleAddTheme(workId: string, text: string) {
-    setThemes((prev) => [
-      createThemeEntry(hall.id, workId, userDisplay, text),
-      ...prev,
-    ]);
+  async function handleAddTheme(workId: string, text: string) {
+    try {
+      const entry = await insertTheme({
+        studentId,
+        hallId: hall.id,
+        workId,
+        authorDisplay: userDisplay,
+        text,
+      });
+      setThemes((prev) => [entry, ...prev]);
+    } catch (error) {
+      console.error(error);
+      alert("주제 의식 저장에 실패했습니다.");
+    }
   }
 
-  function handleToggleLike(themeId: string) {
-    setThemes((prev) =>
-      prev.map((theme) => {
-        if (theme.id !== themeId) return theme;
-        const liked = theme.likedBy.includes(userDisplay);
-        return {
-          ...theme,
-          likedBy: liked
-            ? theme.likedBy.filter((name) => name !== userDisplay)
-            : [...theme.likedBy, userDisplay],
-        };
-      }),
-    );
+  async function handleToggleLike(themeId: string) {
+    const theme = themes.find((t) => t.id === themeId);
+    if (!theme) return;
+
+    const liked = theme.likedBy.includes(userDisplay);
+    const likedBy = liked
+      ? theme.likedBy.filter((name) => name !== userDisplay)
+      : [...theme.likedBy, userDisplay];
+
+    try {
+      await updateThemeLikes(themeId, likedBy);
+      setThemes((prev) =>
+        prev.map((t) => (t.id === themeId ? { ...t, likedBy } : t)),
+      );
+    } catch (error) {
+      console.error(error);
+      alert("좋아요 저장에 실패했습니다.");
+    }
   }
 
-  function handleAddComment(themeId: string, text: string) {
-    setThemes((prev) =>
-      prev.map((theme) =>
-        theme.id === themeId
-          ? {
-              ...theme,
-              comments: [
-                ...theme.comments,
-                createThemeComment(userDisplay, text),
-              ],
-            }
-          : theme,
-      ),
-    );
+  async function handleAddComment(themeId: string, text: string) {
+    try {
+      const comment = await insertComment({
+        themeId,
+        studentId,
+        authorDisplay: userDisplay,
+        text,
+      });
+      setThemes((prev) =>
+        prev.map((theme) =>
+          theme.id === themeId
+            ? { ...theme, comments: [...theme.comments, comment] }
+            : theme,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      alert("댓글 저장에 실패했습니다.");
+    }
   }
 
-  function handleUpdateComment(
+  async function handleUpdateComment(
     themeId: string,
     commentId: string,
     text: string,
   ) {
-    setThemes((prev) =>
-      prev.map((theme) =>
-        theme.id === themeId
-          ? {
-              ...theme,
-              comments: theme.comments.map((comment) =>
-                comment.id === commentId ? { ...comment, text } : comment,
-              ),
-            }
-          : theme,
-      ),
-    );
+    try {
+      await updateCommentText(commentId, text);
+      setThemes((prev) =>
+        prev.map((theme) =>
+          theme.id === themeId
+            ? {
+                ...theme,
+                comments: theme.comments.map((comment) =>
+                  comment.id === commentId ? { ...comment, text } : comment,
+                ),
+              }
+            : theme,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      alert("댓글 수정에 실패했습니다.");
+    }
   }
 
-  function handleDeleteComment(themeId: string, commentId: string) {
-    setThemes((prev) =>
-      prev.map((theme) =>
-        theme.id === themeId
-          ? {
-              ...theme,
-              comments: theme.comments.filter(
-                (comment) => comment.id !== commentId,
-              ),
-            }
-          : theme,
-      ),
-    );
+  async function handleDeleteComment(themeId: string, commentId: string) {
+    try {
+      await deleteComment(commentId);
+      setThemes((prev) =>
+        prev.map((theme) =>
+          theme.id === themeId
+            ? {
+                ...theme,
+                comments: theme.comments.filter(
+                  (comment) => comment.id !== commentId,
+                ),
+              }
+            : theme,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      alert("댓글 삭제에 실패했습니다.");
+    }
   }
 
-  function handleDeleteTheme(themeId: string) {
-    setThemes((prev) => prev.filter((theme) => theme.id !== themeId));
+  async function handleDeleteTheme(themeId: string) {
+    try {
+      await deleteTheme(themeId);
+      setThemes((prev) => prev.filter((theme) => theme.id !== themeId));
+    } catch (error) {
+      console.error(error);
+      alert("주제 의식 삭제에 실패했습니다.");
+    }
   }
 
-  function handleUpdateTheme(themeId: string, text: string) {
-    setThemes((prev) =>
-      prev.map((theme) =>
-        theme.id === themeId ? { ...theme, text } : theme,
-      ),
-    );
+  async function handleUpdateTheme(themeId: string, text: string) {
+    try {
+      await updateThemeText(themeId, text);
+      setThemes((prev) =>
+        prev.map((theme) =>
+          theme.id === themeId ? { ...theme, text } : theme,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      alert("주제 의식 수정에 실패했습니다.");
+    }
   }
 
   return (
@@ -164,6 +243,11 @@ export function TimelineGallery({ profile, hall, onBack }: TimelineGalleryProps)
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 pb-20 pt-8 sm:px-6 sm:pb-24 sm:pt-12">
+        {isLoadingThemes ? (
+          <p className="px-6 text-center text-sm text-neutral-400">
+            주제 의식을 불러오는 중…
+          </p>
+        ) : null}
         <AnimatePresence mode="wait">
           {selectedEra ? (
             <div className="px-6">

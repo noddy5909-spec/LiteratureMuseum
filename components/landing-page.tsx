@@ -12,6 +12,7 @@ type LandingPageProps = {
   profile: UserProfile;
   onProfileChange: (profile: UserProfile) => void;
   onEnter: () => void;
+  isEntering?: boolean;
 };
 
 const inputClassName =
@@ -40,6 +41,7 @@ export function LandingPage({
   profile,
   onProfileChange,
   onEnter,
+  isEntering = false,
 }: LandingPageProps) {
   const canEnter = isUserProfileComplete(profile);
 
@@ -154,10 +156,12 @@ export function LandingPage({
           <motion.div variants={staggerItem} className="mt-12">
             <button
               type="submit"
-              disabled={!canEnter}
+              disabled={!canEnter || isEntering}
               className="relative z-20 w-full rounded-sm bg-neutral-900 py-4 text-sm font-light tracking-[0.2em] text-white transition-all duration-300 enabled:hover:-translate-y-1 enabled:hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-35"
             >
-              {"\uBB38\uD559\uAD00 \uC785\uC7A5\uD558\uAE30"}
+              {isEntering
+                ? "저장 중…"
+                : "\uBB38\uD559\uAD00 \uC785\uC7A5\uD558\uAE30"}
             </button>
           </motion.div>
         </motion.form>
