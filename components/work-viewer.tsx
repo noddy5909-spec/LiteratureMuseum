@@ -25,6 +25,16 @@ type WorkViewerProps = {
 const WORK_TEXT_MAX_PX = 20;
 const WORK_TEXT_MIN_PX = 11;
 
+function WorkTextScroll({ content }: { content: string }) {
+  return (
+    <motion.div className="mt-6 lg:hidden" aria-label="작품 본문">
+      <p className="whitespace-pre-line text-left font-serif text-[15px] leading-[1.85] text-stone-800 sm:text-base">
+        {content}
+      </p>
+    </motion.div>
+  );
+}
+
 function WorkFitContent({ content }: { content: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -63,7 +73,7 @@ function WorkFitContent({ content }: { content: string }) {
   return (
     <div
       ref={containerRef}
-      className="mt-6 min-h-0 flex-1 overflow-hidden"
+      className="mt-6 hidden min-h-0 flex-1 overflow-hidden lg:flex"
       aria-label="작품 본문"
     >
       <p
@@ -118,7 +128,7 @@ export function WorkViewer({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 lg:p-5"
+          className="fixed inset-0 z-50 flex flex-col sm:items-center sm:justify-center sm:p-4 lg:p-5"
           role="dialog"
           aria-modal="true"
           aria-labelledby="work-title"
@@ -135,7 +145,7 @@ export function WorkViewer({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
-            className="relative z-10 w-full max-w-7xl sm:w-[95vw] lg:w-[90vw]"
+            className="relative z-10 flex min-h-0 w-full flex-1 flex-col sm:h-auto sm:flex-none sm:max-w-7xl sm:w-[95vw] lg:w-[90vw]"
           >
             <button
               type="button"
@@ -147,9 +157,9 @@ export function WorkViewer({
             </button>
 
             <motion.article
-              className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl sm:rounded-2xl lg:grid lg:h-[85vh] lg:max-h-none lg:grid-cols-10"
+              className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-y-contain bg-white shadow-2xl sm:max-h-[92dvh] sm:flex-none sm:rounded-2xl lg:grid lg:h-[85vh] lg:max-h-none lg:overflow-hidden lg:grid-cols-10"
             >
-            <section className="flex max-h-[min(42dvh,22rem)] min-h-[11rem] shrink-0 flex-col overflow-hidden border-b border-neutral-100 px-5 py-5 sm:max-h-[min(44dvh,24rem)] sm:px-8 sm:py-7 lg:col-span-6 lg:max-h-none lg:min-h-0 lg:flex-1 lg:border-b-0 lg:border-r lg:px-10 lg:py-10 xl:px-14 xl:py-12">
+            <section className="flex shrink-0 flex-col border-b border-neutral-100 px-5 py-5 sm:px-8 sm:py-7 lg:col-span-6 lg:min-h-0 lg:max-h-none lg:flex-1 lg:overflow-hidden lg:border-b-0 lg:border-r lg:px-10 lg:py-10 xl:px-14 xl:py-12">
               <header className="shrink-0">
                 {displayEraLabel ? (
                   <p className="text-center text-xs text-neutral-400">
@@ -167,10 +177,11 @@ export function WorkViewer({
                 </p>
               </header>
 
-              <WorkFitContent key={work.id} content={work.content} />
+              <WorkTextScroll key={`${work.id}-scroll`} content={work.content} />
+              <WorkFitContent key={`${work.id}-fit`} content={work.content} />
             </section>
 
-            <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#FAFAFA] lg:col-span-4">
+            <section className="flex shrink-0 flex-col bg-[#FAFAFA] lg:col-span-4 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
               <ThemePanel
                 variant="book"
                 workId={work.id}

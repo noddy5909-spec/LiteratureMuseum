@@ -331,9 +331,15 @@ export function ThemePanel({
 
   return (
     <>
-      <div className="flex h-full min-h-0 flex-col">
+      <div
+        className={`flex flex-col ${isBook ? "lg:h-full lg:min-h-0" : "h-full min-h-0"}`}
+      >
         <div
-          className={`min-h-0 flex-1 overflow-y-auto ${pad} ${isBook ? "pt-10 pb-4" : "pt-5 pb-4"}`}
+          className={`${pad} ${
+            isBook
+              ? "pt-10 pb-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
+              : "min-h-0 flex-1 overflow-y-auto pt-5 pb-4"
+          }`}
         >
           {workThemes.length === 0 ? (
             <p className="py-12 text-center text-sm font-light text-neutral-500">
@@ -394,7 +400,7 @@ export function ThemePanel({
                           }}
                           className="cursor-pointer px-5 pb-3 text-left transition hover:bg-neutral-50/60"
                         >
-                          <p className="line-clamp-3 text-[15px] leading-relaxed text-stone-800">
+                          <p className="text-[15px] leading-relaxed text-stone-800 lg:line-clamp-3">
                             {theme.text}
                           </p>
                         </div>
@@ -478,10 +484,10 @@ export function ThemePanel({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="relative z-10 flex max-h-[min(90vh,820px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+              className="relative z-10 flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-y-auto overscroll-y-contain rounded-2xl bg-white shadow-2xl lg:max-h-[min(90vh,820px)] lg:overflow-hidden"
               onClick={(event) => event.stopPropagation()}
             >
-              <header className="flex shrink-0 items-start justify-between gap-4 border-b border-neutral-100 px-8 py-6">
+              <header className="flex shrink-0 items-start justify-between gap-4 border-b border-neutral-100 px-5 py-5 sm:px-8 sm:py-6">
                 <p
                   id="theme-detail-author"
                   className="text-sm font-medium tracking-wide text-amber-800/90"
@@ -522,12 +528,12 @@ export function ThemePanel({
 
               <section
                 aria-label="주제 의식"
-                className="shrink-0 border-b border-amber-100/80 bg-amber-50/40 px-8 py-6"
+                className="shrink-0 border-b border-amber-100/80 bg-amber-50/40 px-5 py-5 sm:px-8 sm:py-6"
               >
                 <p className="text-[11px] font-medium tracking-wide text-amber-800/80 uppercase">
                   주제 의식
                 </p>
-                <p className="mt-3 font-serif text-xl leading-[1.9] text-stone-800 sm:text-2xl">
+                <p className="mt-3 font-serif text-lg leading-[1.9] text-stone-800 sm:text-xl lg:text-2xl">
                   {selectedTheme.text}
                 </p>
                 <div className="mt-6 flex items-center gap-5">
@@ -563,14 +569,14 @@ export function ThemePanel({
 
               <section
                 aria-label="댓글 목록"
-                className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                className="flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-hidden"
               >
-                <div className="shrink-0 border-b border-neutral-100 px-8 py-4">
+                <div className="shrink-0 border-b border-neutral-100 px-5 py-4 sm:px-8">
                   <p className="text-[11px] font-medium tracking-wide text-stone-500 uppercase">
                     댓글 {selectedTheme.comments.length}
                   </p>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-8 py-4">
+                <div className="px-5 py-4 sm:px-8 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
                   <CommentList
                     themeId={selectedTheme.id}
                     comments={selectedTheme.comments}
@@ -610,7 +616,7 @@ export function ThemePanel({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 16, scale: 0.98 }}
                       transition={{ duration: 0.3, ease: "easeOut" }}
-                      className="relative z-10 flex max-h-[min(85vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+                      className="relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-y-auto overscroll-y-contain rounded-2xl bg-white shadow-2xl lg:max-h-[min(85vh,640px)] lg:overflow-hidden"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-100 px-5 py-4">
@@ -642,21 +648,21 @@ export function ThemePanel({
                         <p className="text-[11px] font-medium tracking-wide text-amber-800/80 uppercase">
                           주제 의식
                         </p>
-                        <p className="mt-2 max-h-[min(28vh,160px)] overflow-y-auto font-serif text-sm leading-relaxed text-stone-800">
+                        <p className="mt-2 font-serif text-sm leading-relaxed text-stone-800 lg:max-h-[min(28vh,160px)] lg:overflow-y-auto">
                           {commentTheme.text}
                         </p>
                       </section>
 
                       <section
                         aria-label="댓글 목록"
-                        className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white"
+                        className="flex flex-col bg-white lg:min-h-0 lg:flex-1 lg:overflow-hidden"
                       >
                         <div className="shrink-0 border-b border-neutral-100 px-5 py-3">
                           <p className="text-[11px] font-medium tracking-wide text-stone-500 uppercase">
                             댓글 {commentTheme.comments.length}
                           </p>
                         </div>
-                        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+                        <div className="px-5 py-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
                           <CommentList
                             themeId={commentTheme.id}
                             comments={commentTheme.comments}
@@ -720,7 +726,7 @@ export function ThemePanel({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="relative z-10 w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl"
+              className="relative z-10 max-h-[92dvh] w-full max-w-2xl overflow-y-auto overscroll-y-contain rounded-xl bg-white shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <header className="flex items-center justify-between gap-4 border-b border-neutral-100 px-6 py-5">

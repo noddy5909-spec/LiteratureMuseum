@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   mapCommentRow,
@@ -10,13 +11,127 @@ import {
 } from "@/lib/supabase/themes";
 import type { ThemeEntry } from "@/lib/theme-types";
 
+function applyThemeEntryEvent(
+  hallId: string,
+  payload: RealtimePostgresChangesPayload<ThemeEntryRow>,
+  setThemes: React.Dispatch<React.SetStateAction<ThemeEntry[]>>,
+) {
+  const event = payload.eventType;
+
+  if (event === "INSERT") {
+    const row = payload.new;
+    if (!row || row.hall_id !== hallId) return;
+    const entry = mapThemeRow(row, []);
+    setThemes((prev) => {
+      if (prev.some((theme) => theme.id === entry.id)) return prev;
+      return [entry, ...prev];
+    });
+    return;
+  }
+
+  if (event === "UPDATE") {
+    const row = payload.new;
+    if (!row || row.hall_id !== hallId) return;
+    setThemes((prev) =>
+      prev.map((theme) =>
+        theme.id === row.id
+          ? {
+              ...theme,
+              author: row.author_display,
+              text: row.body,
+              likedBy: row.liked_by ?? [],
+            }
+          : theme,
+      ),
+    );
+    return;
+  }
+
+  if (event === "DELETE") {
+    const row = payload.old;
+    if (!row?.id) return;
+    setThemes((prev) => {
+      const target = prev.find((theme) => theme.id === row.id);
+      if (!target) return prev;
+      if (row.hall_id && row.hall_id !== hallId) return prev;
+      return prev.filter((theme) => theme.id !== row.id);
+    });
+  }
+}
+
+function applyThemeCommentEvent(
+  payload: RealtimePostgresChangesPayload<ThemeCommentRow>,
+  setThemes: React.Dispatch<React.SetStateAction<ThemeEntry[]>>,
+) {
+  const event = payload.eventType;
+
+  if (event === "INSERT") {
+    const row = payload.new;
+    if (!row) return;
+    const comment = mapCommentRow(row);
+    setThemes((prev) => {
+      const themeIndex = prev.findIndex((theme) => theme.id === row.theme_id);
+      if (themeIndex === -1) return prev;
+      const theme = prev[themeIndex];
+      if (theme.comments.some((c) => c.id === comment.id)) return prev;
+      const next = [...prev];
+      next[themeIndex] = {
+        ...theme,
+        comments: [...theme.comments, comment],
+      };
+      return next;
+    });
+    return;
+  }
+
+  if (event === "UPDATE") {
+    const row = payload.new;
+    if (!row) return;
+    const comment = mapCommentRow(row);
+    setThemes((prev) =>
+      prev.map((theme) =>
+        theme.id === row.theme_id
+          ? {
+              ...theme,
+              comments: theme.comments.map((c) =>
+                c.id === comment.id ? comment : c,
+              ),
+            }
+          : theme,
+      ),
+    );
+    return;
+  }
+
+  if (event === "DELETE") {
+    const row = payload.old;
+    if (!row?.id || !row.theme_id) return;
+    setThemes((prev) =>
+      prev.map((theme) =>
+        theme.id === row.theme_id
+          ? {
+              ...theme,
+              comments: theme.comments.filter(
+                (comment) => comment.id !== row.id,
+              ),
+            }
+          : theme,
+      ),
+    );
+  }
+}
+
 /**
  * 현재 홀의 theme_entries / theme_comments 변경을 Realtime으로 반영합니다.
+ * (서버 필터 없이 수신 후 hall_id로 클라이언트 필터 — hall-1 등 값 파싱 오류 방지)
  */
 export function useHallThemesRealtime(
   hallId: string,
   setThemes: React.Dispatch<React.SetStateAction<ThemeEntry[]>>,
 ) {
+  const hallIdRef = useRef(hallId);
+  hallIdRef.current = hallId;
+
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
@@ -26,132 +141,44 @@ export function useHallThemesRealtime(
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "theme_entries",
-          filter: `hall_id=eq.${hallId}`,
         },
         (payload) => {
-          const row = payload.new as ThemeEntryRow;
-          const entry = mapThemeRow(row, []);
-          setThemes((prev) => {
-            if (prev.some((theme) => theme.id === entry.id)) return prev;
-            return [entry, ...prev];
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "theme_entries",
-          filter: `hall_id=eq.${hallId}`,
-        },
-        (payload) => {
-          const row = payload.new as ThemeEntryRow;
-          setThemes((prev) =>
-            prev.map((theme) =>
-              theme.id === row.id
-                ? {
-                    ...theme,
-                    author: row.author_display,
-                    text: row.body,
-                    likedBy: row.liked_by ?? [],
-                  }
-                : theme,
-            ),
+          applyThemeEntryEvent(
+            hallIdRef.current,
+            payload as RealtimePostgresChangesPayload<ThemeEntryRow>,
+            setThemes,
           );
         },
       )
       .on(
         "postgres_changes",
         {
-          event: "DELETE",
-          schema: "public",
-          table: "theme_entries",
-          filter: `hall_id=eq.${hallId}`,
-        },
-        (payload) => {
-          const row = payload.old as ThemeEntryRow;
-          setThemes((prev) => prev.filter((theme) => theme.id !== row.id));
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "theme_comments",
         },
         (payload) => {
-          const row = payload.new as ThemeCommentRow;
-          const comment = mapCommentRow(row);
-          setThemes((prev) => {
-            const themeIndex = prev.findIndex((theme) => theme.id === row.theme_id);
-            if (themeIndex === -1) return prev;
-            const theme = prev[themeIndex];
-            if (theme.comments.some((c) => c.id === comment.id)) return prev;
-            const next = [...prev];
-            next[themeIndex] = {
-              ...theme,
-              comments: [...theme.comments, comment],
-            };
-            return next;
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "theme_comments",
-        },
-        (payload) => {
-          const row = payload.new as ThemeCommentRow;
-          const comment = mapCommentRow(row);
-          setThemes((prev) =>
-            prev.map((theme) =>
-              theme.id === row.theme_id
-                ? {
-                    ...theme,
-                    comments: theme.comments.map((c) =>
-                      c.id === comment.id ? comment : c,
-                    ),
-                  }
-                : theme,
-            ),
+          applyThemeCommentEvent(
+            payload as RealtimePostgresChangesPayload<ThemeCommentRow>,
+            setThemes,
           );
         },
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "theme_comments",
-        },
-        (payload) => {
-          const row = payload.old as ThemeCommentRow;
-          setThemes((prev) =>
-            prev.map((theme) =>
-              theme.id === row.theme_id
-                ? {
-                    ...theme,
-                    comments: theme.comments.filter(
-                      (comment) => comment.id !== row.id,
-                    ),
-                  }
-                : theme,
-            ),
-          );
-        },
-      )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (process.env.NODE_ENV === "development") {
+          if (status === "SUBSCRIBED") {
+            console.info("[realtime] 구독됨:", `hall-themes:${hallId}`);
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.error("[realtime] 구독 실패:", status, err);
+          }
+        }
+      });
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [hallId, setThemes]);
 }

@@ -59,3 +59,35 @@ create policy "theme_comments_anon_all"
   to anon, authenticated
   using (true)
   with check (true);
+
+-- Realtime: 테이블 권한 + publication + UPDATE/DELETE 시 이전 값
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.students to anon, authenticated;
+grant select, insert, update, delete on public.theme_entries to anon, authenticated;
+grant select, insert, update, delete on public.theme_comments to anon, authenticated;
+
+alter table public.theme_entries replica identity full;
+alter table public.theme_comments replica identity full;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'theme_entries'
+  ) then
+    alter publication supabase_realtime add table public.theme_entries;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'theme_comments'
+  ) then
+    alter publication supabase_realtime add table public.theme_comments;
+  end if;
+end $$;

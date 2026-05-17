@@ -51,7 +51,7 @@ export function TimelineGallery({
   const eraWorks = selectedEra ? getWorksByEraId(selectedEra.id) : [];
   const hallThemes = themes.filter((theme) => theme.hallId === hall.id);
 
-  const loadThemes = useCallback(async () => {
+  const loadThemes = useCallback(async (signal?: AbortSignal) => {
     if (!isSupabaseConfigured()) {
       setThemes([]);
       setIsLoadingThemes(false);
@@ -61,17 +61,23 @@ export function TimelineGallery({
     setIsLoadingThemes(true);
     try {
       const data = await fetchThemesByHall(hall.id);
+      if (signal?.aborted) return;
       setThemes(data);
     } catch (error) {
+      if (signal?.aborted) return;
       console.error(error);
       alert("주제 의식을 불러오지 못했습니다.");
     } finally {
-      setIsLoadingThemes(false);
+      if (!signal?.aborted) {
+        setIsLoadingThemes(false);
+      }
     }
   }, [hall.id]);
 
   useEffect(() => {
-    void loadThemes();
+    const controller = new AbortController();
+    void loadThemes(controller.signal);
+    return () => controller.abort();
   }, [loadThemes]);
 
   useHallThemesRealtime(hall.id, setThemes);
