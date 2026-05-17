@@ -1,26 +1,145 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fcfcfc;
+  --foreground: #1c1917;
+  --text-primary: #1c1917;
+  --text-secondary: #44403c;
+  --text-muted: #57534e;
+  --text-subtle: #78716c;
+  --border: rgba(28, 25, 23, 0.1);
+  --border-strong: rgba(28, 25, 23, 0.14);
+  --surface: rgba(255, 255, 255, 0.88);
+  --surface-muted: #f5f5f4;
+  --accent: #92400e;
+  --accent-muted: #a16207;
+  --spotlight-warm: rgba(180, 140, 80, 0.12);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-noto-serif-kr);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
 }
 
 body {
+  min-height: 100vh;
+  margin: 0;
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-secondary);
+  font-family: var(--font-noto-serif-kr), "Noto Serif KR", serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(180, 140, 80, 0.22);
+  color: var(--text-primary);
+}
+
+.glass-panel {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 1px 2px rgba(28, 25, 23, 0.05),
+    0 8px 28px rgba(28, 25, 23, 0.06);
+}
+
+.text-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.text-body {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.text-body-muted {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.75;
+  color: var(--text-muted);
+}
+
+.title-glow {
+  color: var(--text-primary);
+  font-family: var(--font-serif), "Noto Serif KR", serif;
+  font-weight: 400;
+}
+
+.glow-hover {
+  transition:
+    box-shadow 0.35s ease,
+    border-color 0.35s ease,
+    background-color 0.35s ease,
+    color 0.35s ease;
+}
+
+.glow-hover:hover {
+  box-shadow:
+    0 2px 8px rgba(28, 25, 23, 0.06),
+    0 0 24px var(--spotlight-warm);
+  border-color: rgba(28, 25, 23, 0.2);
+}
+
+.timeline-scroll {
+  scroll-behavior: smooth;
+  scroll-padding-inline: 1.5rem;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+
+.timeline-scroll:focus-visible {
+  outline: 2px solid rgba(120, 113, 108, 0.35);
+  outline-offset: 4px;
+  border-radius: 0.5rem;
+}
+
+.timeline-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.timeline-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 9999px;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a8a29e;
+}
+
+.timeline-line-h {
+  background: linear-gradient(
+    to right,
+    #d6d3d1,
+    #a8a29e 45%,
+    #78716c 100%
+  );
 }
