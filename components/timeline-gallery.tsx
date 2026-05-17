@@ -24,6 +24,7 @@ import {
   updateThemeLikes,
   updateThemeText,
 } from "@/lib/supabase/themes";
+import { useHallThemesRealtime } from "@/lib/supabase/use-hall-themes-realtime";
 import type { ThemeEntry } from "@/lib/theme-types";
 import type { MuseumHall } from "@/lib/halls";
 import { formatUserDisplay, type UserProfile } from "@/lib/user-profile";
@@ -72,6 +73,8 @@ export function TimelineGallery({
   useEffect(() => {
     void loadThemes();
   }, [loadThemes]);
+
+  useHallThemesRealtime(hall.id, setThemes);
 
   function handleHeaderBack() {
     if (selectedEra) {

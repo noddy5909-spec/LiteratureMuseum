@@ -1,7 +1,7 @@
 import { getSupabase } from "@/lib/supabase/client";
 import type { ThemeComment, ThemeEntry } from "@/lib/theme-types";
 
-type ThemeCommentRow = {
+export type ThemeCommentRow = {
   id: string;
   theme_id: string;
   student_id: string | null;
@@ -10,7 +10,7 @@ type ThemeCommentRow = {
   created_at: string;
 };
 
-type ThemeEntryRow = {
+export type ThemeEntryRow = {
   id: string;
   student_id: string;
   hall_id: string;
@@ -21,7 +21,7 @@ type ThemeEntryRow = {
   created_at: string;
 };
 
-function mapComment(row: ThemeCommentRow): ThemeComment {
+export function mapCommentRow(row: ThemeCommentRow): ThemeComment {
   return {
     id: row.id,
     author: row.author_display,
@@ -29,7 +29,10 @@ function mapComment(row: ThemeCommentRow): ThemeComment {
   };
 }
 
-function mapTheme(entry: ThemeEntryRow, comments: ThemeCommentRow[]): ThemeEntry {
+export function mapThemeRow(
+  entry: ThemeEntryRow,
+  comments: ThemeCommentRow[] = [],
+): ThemeEntry {
   return {
     id: entry.id,
     hallId: entry.hall_id,
@@ -43,7 +46,7 @@ function mapTheme(entry: ThemeEntryRow, comments: ThemeCommentRow[]): ThemeEntry
         (a, b) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       )
-      .map(mapComment),
+      .map(mapCommentRow),
   };
 }
 
@@ -68,7 +71,7 @@ export async function fetchThemesByHall(hallId: string): Promise<ThemeEntry[]> {
   if (commentsError) throw commentsError;
 
   return entries.map((entry) =>
-    mapTheme(entry as ThemeEntryRow, (comments ?? []) as ThemeCommentRow[]),
+    mapThemeRow(entry as ThemeEntryRow, (comments ?? []) as ThemeCommentRow[]),
   );
 }
 
@@ -95,7 +98,7 @@ export async function insertTheme(params: {
     .single();
 
   if (error) throw error;
-  return mapTheme(data as ThemeEntryRow, []);
+  return mapThemeRow(data as ThemeEntryRow, []);
 }
 
 export async function updateThemeText(
@@ -154,7 +157,7 @@ export async function insertComment(params: {
     .single();
 
   if (error) throw error;
-  return mapComment(data as ThemeCommentRow);
+  return mapCommentRow(data as ThemeCommentRow);
 }
 
 export async function updateCommentText(
