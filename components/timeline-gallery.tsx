@@ -13,6 +13,11 @@ import {
   type LiteraryWork,
   type TimelineEra,
 } from "@/lib/timeline-data";
+import {
+  isMockThemeId,
+  mergeThemesWithMocks,
+  getMockThemesForHall,
+} from "@/lib/mock-theme-entries";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   deleteComment,
@@ -53,7 +58,8 @@ export function TimelineGallery({
 
   const loadThemes = useCallback(async (signal?: AbortSignal) => {
     if (!isSupabaseConfigured()) {
-      setThemes([]);
+      if (signal?.aborted) return;
+      setThemes(getMockThemesForHall(hall.id));
       setIsLoadingThemes(false);
       return;
     }
@@ -62,7 +68,7 @@ export function TimelineGallery({
     try {
       const data = await fetchThemesByHall(hall.id);
       if (signal?.aborted) return;
-      setThemes(data);
+      setThemes(mergeThemesWithMocks(hall.id, data));
     } catch (error) {
       if (signal?.aborted) return;
       console.error(error);
@@ -115,6 +121,13 @@ export function TimelineGallery({
       ? theme.likedBy.filter((name) => name !== userDisplay)
       : [...theme.likedBy, userDisplay];
 
+    if (isMockThemeId(themeId)) {
+      setThemes((prev) =>
+        prev.map((t) => (t.id === themeId ? { ...t, likedBy } : t)),
+      );
+      return;
+    }
+
     try {
       await updateThemeLikes(themeId, likedBy);
       setThemes((prev) =>
@@ -127,6 +140,27 @@ export function TimelineGallery({
   }
 
   async function handleAddComment(themeId: string, text: string) {
+    if (isMockThemeId(themeId)) {
+      setThemes((prev) =>
+        prev.map((theme) =>
+          theme.id === themeId
+            ? {
+                ...theme,
+                comments: [
+                  ...theme.comments,
+                  {
+                    id: `mock-comment-${Date.now()}`,
+                    author: userDisplay,
+                    text,
+                  },
+                ],
+              }
+            : theme,
+        ),
+      );
+      return;
+    }
+
     try {
       const comment = await insertComment({
         themeId,
@@ -152,6 +186,22 @@ export function TimelineGallery({
     commentId: string,
     text: string,
   ) {
+    if (isMockThemeId(themeId)) {
+      setThemes((prev) =>
+        prev.map((theme) =>
+          theme.id === themeId
+            ? {
+                ...theme,
+                comments: theme.comments.map((comment) =>
+                  comment.id === commentId ? { ...comment, text } : comment,
+                ),
+              }
+            : theme,
+        ),
+      );
+      return;
+    }
+
     try {
       await updateCommentText(commentId, text);
       setThemes((prev) =>
@@ -173,6 +223,22 @@ export function TimelineGallery({
   }
 
   async function handleDeleteComment(themeId: string, commentId: string) {
+    if (isMockThemeId(themeId)) {
+      setThemes((prev) =>
+        prev.map((theme) =>
+          theme.id === themeId
+            ? {
+                ...theme,
+                comments: theme.comments.filter(
+                  (comment) => comment.id !== commentId,
+                ),
+              }
+            : theme,
+        ),
+      );
+      return;
+    }
+
     try {
       await deleteComment(commentId);
       setThemes((prev) =>
@@ -194,6 +260,11 @@ export function TimelineGallery({
   }
 
   async function handleDeleteTheme(themeId: string) {
+    if (isMockThemeId(themeId)) {
+      setThemes((prev) => prev.filter((theme) => theme.id !== themeId));
+      return;
+    }
+
     try {
       await deleteTheme(themeId);
       setThemes((prev) => prev.filter((theme) => theme.id !== themeId));
@@ -204,6 +275,15 @@ export function TimelineGallery({
   }
 
   async function handleUpdateTheme(themeId: string, text: string) {
+    if (isMockThemeId(themeId)) {
+      setThemes((prev) =>
+        prev.map((theme) =>
+          theme.id === themeId ? { ...theme, text } : theme,
+        ),
+      );
+      return;
+    }
+
     try {
       await updateThemeText(themeId, text);
       setThemes((prev) =>
@@ -281,7 +361,7 @@ export function TimelineGallery({
                   {hall.label}
                 </p>
                 <h2 className="title-glow mt-2 font-serif text-2xl sm:text-3xl">
-                  어둠을 건너는 시선들
+                  남녕 현대시 문학관
                 </h2>
                 <p className="mt-3 text-base leading-relaxed text-neutral-500">
                   시대를 선택하고 작품을 만나 보세요.
