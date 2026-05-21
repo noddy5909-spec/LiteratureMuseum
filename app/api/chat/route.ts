@@ -1,6 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { DOCENT_SYSTEM_PROMPT } from "@/lib/ai-docent-prompt";
+import { buildDocentSystemPrompt } from "@/lib/ai-docent-prompt";
 
 export const maxDuration = 30;
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: google("gemini-2.5-flash"),
-    system: DOCENT_SYSTEM_PROMPT,
+    system: buildDocentSystemPrompt(),
     messages: await convertToModelMessages(messages),
   });
 
